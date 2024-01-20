@@ -1,0 +1,90 @@
+esphome:
+  name: rpw-sensor-03
+  friendly_name: rpw-3
+  platform: ESP32
+  board: nodemcu-32s
+
+logger:
+  level: VERY_VERBOSE
+  baud_rate: 0
+
+api:
+  encryption:
+    key:  !secret api_key
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+captive_portal:
+    
+uart:
+  id: uart_bus
+  tx_pin: GPIO22
+  rx_pin: GPIO21
+  baud_rate: 115200
+  debug:
+    direction: BOTH
+    dummy_receiver: true
+    after:
+      delimiter: "\n"
+    sequence:
+      - lambda: UARTDebug::log_string(direction, bytes);
+      
+binary_sensor:
+- platform: gpio
+  name: Presence
+  pin:
+    number: GPIO18
+    mode:
+      input: true
+      pulldown: true
+
+sensor:
+  - platform: dht
+    pin: GPIO19
+    temperature:
+      name: Temperature
+      filters:
+        - filter_out: nan
+        - heartbeat: 15s
+        - sliding_window_moving_average:
+            window_size: 2
+            send_every: 2
+            send_first_at: 1
+      unit_of_measurement: "°C"
+    humidity:
+      name: Humidity
+      filters:
+        - filter_out: nan
+        - heartbeat: 15s
+        - sliding_window_moving_average:
+            window_size: 2
+            send_every: 2
+            send_first_at: 1
+      accuracy_decimals: 1 # humidity gets 0 decimals by default
+    model: DHT11
+    update_interval: 20s
+  - platform: adc
+    pin: GPIO34
+    name: "Illuminance"
+    device_class: illuminance
+    unit_of_measurement: lx
+    filters:
+      - lambda: |-
+          return (x / 10000.0) * 2000000.0;
+
+  - platform: wifi_signal
+    name: WiFi Signal Strength
+    update_interval: 60s
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 1100ms
+    window: 1100ms
+    active: true
+
+bluetooth_proxy:
+  active: true
